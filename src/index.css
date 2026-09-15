@@ -30,3 +30,16 @@ body {
   .no-print { display: none !important; }
   body { background: white; }
 }
+
+@media print {
+  .report-preview {
+    max-width: none !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+  .break-inside-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

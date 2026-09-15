@@ -27,7 +27,7 @@ npm run build # production build
 - **Named gifts** — never auto-apply the general offertory model
 - **Comparison** — Category | Actual | Proposed | Difference per Sunday and combined
 - **Settings** — church name, currency label (default `k`), no-debt mode, deduct ops before model, trial dates, editable categories & model bands, Admin/Viewer role (optional light password), report statuses, audit log
-- **Reports** — on-screen preview, A4 PDF (jsPDF), high-res multi-page PNG (html2canvas), signatures section
+- **Reports** — scope (this Sunday / multi-select / date range), Actual-only or Actual+proposed modes, progression chart for multi-Sunday, on-screen preview, A4 PDF (jsPDF), phone-readable multi-page PNG (html2canvas), print, signatures + disclaimer
 - **Sample data** — 6 Sep & 13 Sep 2025 preloaded
 
 ## Proposed model (general offertory `G` only)
