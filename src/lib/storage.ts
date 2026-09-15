@@ -8,8 +8,13 @@ export function loadState(): AppState {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return initialState()
     const parsed = JSON.parse(raw) as AppState
+    const settings = { ...DEFAULT_SETTINGS, ...parsed.settings }
+    // Migrate legacy "k" unit label → UGX (values stay in thousands)
+    if (!settings.currencyLabel || settings.currencyLabel.toLowerCase() === 'k') {
+      settings.currencyLabel = 'UGX'
+    }
     return {
-      settings: { ...DEFAULT_SETTINGS, ...parsed.settings },
+      settings,
       sundays: Array.isArray(parsed.sundays) ? parsed.sundays : [],
       auditLog: Array.isArray(parsed.auditLog) ? parsed.auditLog : [],
     }

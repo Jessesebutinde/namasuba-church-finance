@@ -259,6 +259,8 @@ export function SundayForm() {
                     type="number"
                     step="0.1"
                     disabled={!isAdmin}
+                    placeholder="e.g. 20 = 20,000 UGX"
+                    title="Thousands of UGX"
                     value={line.amount}
                     onChange={(e) =>
                       updateIncome(line.id, { amount: Number(e.target.value) || 0 })
@@ -293,6 +295,7 @@ export function SundayForm() {
           <section className="rounded-xl border border-navy-900/10 bg-white p-4 shadow-sm">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-navy-900">Expenses</h2>
+              <p className="text-xs text-muted">Amounts in thousands of UGX — enter 20 for 20,000 UGX.</p>
               {isAdmin && (
                 <button
                   type="button"
@@ -360,6 +363,8 @@ export function SundayForm() {
                     type="number"
                     step="0.1"
                     disabled={!isAdmin}
+                    placeholder="e.g. 20 = 20,000 UGX"
+                    title="Thousands of UGX"
                     value={line.amount}
                     onChange={(e) =>
                       updateExpense(line.id, { amount: Number(e.target.value) || 0 })

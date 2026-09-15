@@ -1,11 +1,35 @@
-export function fmtAmount(n: number, currencyLabel = 'k'): string {
+/** Amounts are stored in thousands of UGX (enter 20 for 20,000 UGX). */
+export function fmtAmount(n: number, currencyLabel = 'UGX'): string {
+  const v = Number.isFinite(n) ? n : 0
+  const ugx = Math.round((v * 1000 + Number.EPSILON) * 100) / 100
+  const whole =
+    Number.isInteger(ugx) || Math.abs(ugx - Math.round(ugx)) < 1e-9
+      ? Math.round(ugx)
+      : ugx
+  const str = Number(whole).toLocaleString('en-UG', {
+    maximumFractionDigits: 0,
+  })
+  const label = (currencyLabel || 'UGX').trim() || 'UGX'
+  // Avoid double-suffix if someone still typed "k"
+  if (label.toLowerCase() === 'k') {
+    return `${str} UGX`
+  }
+  return `${str} ${label}`
+}
+
+/** Short form for tight UI: 20k UGX */
+export function fmtAmountShort(n: number, currencyLabel = 'UGX'): string {
   const v = Number.isFinite(n) ? n : 0
   const rounded = Math.round((v + Number.EPSILON) * 100) / 100
   const str =
     Number.isInteger(rounded) || Math.abs(rounded - Math.round(rounded)) < 1e-9
       ? String(Math.round(rounded))
       : rounded.toFixed(1).replace(/\.0$/, '')
-  return `${str}${currencyLabel}`
+  const label = (currencyLabel || 'UGX').trim() || 'UGX'
+  if (label.toLowerCase() === 'k') {
+    return `${str}k UGX`
+  }
+  return `${str}k ${label}`
 }
 
 export function fmtDate(isoDate: string): string {

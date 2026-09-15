@@ -45,6 +45,9 @@ export function SettingsPanel() {
               value={settings.currencyLabel}
               onChange={(e) => updateSettings({ currencyLabel: e.target.value })}
             />
+            <p className="mt-1 text-xs text-muted">
+              Use UGX. Entry fields are in thousands: type 20 for 20,000 UGX.
+            </p>
           </label>
           <label className="flex items-center gap-2 text-sm sm:col-span-2">
             <input
@@ -169,7 +172,7 @@ export function SettingsPanel() {
             Reset band defaults
           </button>
         </div>
-        <p className="mt-1 text-xs text-muted">Editable trial structure. Amounts in {settings.currencyLabel}.</p>
+        <p className="mt-1 text-xs text-muted">Editable trial structure. Enter figures in thousands of UGX (20 means 20,000 UGX). Reports show full UGX.</p>
         <div className="mt-3 space-y-3">
           {settings.modelBands.map((band, idx) => (
             <div key={band.id} className="grid gap-2 rounded border border-navy-900/10 p-3 sm:grid-cols-4">

@@ -137,7 +137,7 @@ export const DEFAULT_BANDS: ModelBand[] = [
 
 export const DEFAULT_SETTINGS: AppSettings = {
   churchName: 'Namasuba Redeemed',
-  currencyLabel: 'k',
+  currencyLabel: 'UGX',
   noDebtMode: false,
   deductOperatingExpenses: true,
   trialStart: '2025-09-01',
