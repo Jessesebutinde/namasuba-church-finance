@@ -28,15 +28,21 @@ body {
 
 @media print {
   .no-print { display: none !important; }
-  body { background: white; }
-}
-
-@media print {
+  body, #root {
+    background: white !important;
+  }
+  /* Keep report visible; hide chrome that would otherwise cover/clutter pages */
   .report-preview {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
     max-width: none !important;
+    width: 100% !important;
     margin: 0 !important;
+    padding: 0 !important;
     box-shadow: none !important;
     border: none !important;
+    border-radius: 0 !important;
   }
   .break-inside-avoid {
     break-inside: avoid;

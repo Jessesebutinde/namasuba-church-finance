@@ -21,26 +21,212 @@ export interface ReportExportOptions {
 
 const CATS = [...BUCKET_KEYS]
 
+/** Reliable download for desktop + iOS Safari / GitHub Pages. */
+export function triggerDownload(
+  blobOrDataUrl: Blob | string,
+  filename: string,
+): void {
+  let url: string
+  let revoke = false
+  if (typeof blobOrDataUrl === 'string') {
+    url = blobOrDataUrl
+  } else {
+    url = URL.createObjectURL(blobOrDataUrl)
+    revoke = true
+  }
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.rel = 'noopener'
+  a.style.display = 'none'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  if (revoke) {
+    setTimeout(() => URL.revokeObjectURL(url), 1500)
+  }
+}
+
+function looksMobile(): boolean {
+  if (typeof navigator === 'undefined') return false
+  const ua = navigator.userAgent || ''
+  if (/iPhone|iPad|iPod|Android/i.test(ua)) return true
+  // Coarse pointer + no hover ≈ phone/tablet
+  try {
+    return (
+      window.matchMedia('(pointer: coarse)').matches &&
+      !window.matchMedia('(hover: hover)').matches
+    )
+  } catch {
+    return false
+  }
+}
+
+async function tryShareFile(blob: Blob, filename: string): Promise<boolean> {
+  if (!looksMobile()) return false
+  if (typeof navigator === 'undefined' || typeof navigator.share !== 'function') {
+    return false
+  }
+  try {
+    const file = new File([blob], filename, {
+      type: blob.type || 'application/octet-stream',
+    })
+    const data: ShareData = { files: [file], title: filename }
+    if (typeof navigator.canShare === 'function' && !navigator.canShare(data)) {
+      return false
+    }
+    await navigator.share(data)
+    return true
+  } catch {
+    // User cancel or unsupported — fall through to download
+    return false
+  }
+}
+
+function replaceChartsWithPlaceholders(clonedDoc: Document): void {
+  const selectors = ['.recharts-wrapper', 'svg.recharts-surface', '.recharts-responsive-container']
+  const seen = new Set<Element>()
+  for (const sel of selectors) {
+    clonedDoc.querySelectorAll(sel).forEach((node) => {
+      const el = node as HTMLElement
+      // Prefer replacing the outermost chart container once
+      const wrapper =
+        (el.closest('.recharts-wrapper') as HTMLElement | null) ||
+        (el.closest('.recharts-responsive-container') as HTMLElement | null) ||
+        el
+      if (seen.has(wrapper)) return
+      seen.add(wrapper)
+      const placeholder = clonedDoc.createElement('div')
+      placeholder.setAttribute(
+        'style',
+        [
+          'display:flex',
+          'align-items:center',
+          'justify-content:center',
+          'min-height:120px',
+          'width:100%',
+          'padding:12px',
+          'margin:8px 0',
+          'border:1px dashed #c9a227',
+          'background:#f7f1de',
+          'color:#0b1f3a',
+          'font-size:12px',
+          'text-align:center',
+          'box-sizing:border-box',
+        ].join(';'),
+      )
+      placeholder.textContent = '[Chart — see PDF or on-screen preview for charts]'
+      wrapper.replaceWith(placeholder)
+    })
+  }
+}
+
+async function waitForFontsAndImages(el: HTMLElement): Promise<void> {
+  try {
+    if (document.fonts?.ready) {
+      await Promise.race([
+        document.fonts.ready,
+        new Promise((r) => setTimeout(r, 800)),
+      ])
+    }
+  } catch {
+    /* ignore */
+  }
+  const images = Array.from(el.querySelectorAll('img'))
+  await Promise.all(
+    images.map(
+      (img) =>
+        new Promise<void>((resolve) => {
+          if (img.complete) {
+            resolve()
+            return
+          }
+          const done = () => resolve()
+          img.addEventListener('load', done, { once: true })
+          img.addEventListener('error', done, { once: true })
+          setTimeout(done, 500)
+        }),
+    ),
+  )
+}
+
+const H2C_BASE = {
+  backgroundColor: '#ffffff' as string,
+  scale: 2,
+  useCORS: true,
+  allowTaint: true,
+  logging: false,
+}
+
+async function captureElement(
+  el: HTMLElement,
+  withChartFallback: boolean,
+): Promise<HTMLCanvasElement> {
+  const opts: Parameters<typeof html2canvas>[1] = {
+    ...H2C_BASE,
+    foreignObjectRendering: !withChartFallback,
+  }
+  if (withChartFallback) {
+    opts.onclone = (clonedDoc: Document) => {
+      replaceChartsWithPlaceholders(clonedDoc)
+    }
+  }
+  try {
+    return await html2canvas(el, opts)
+  } catch (err) {
+    if (!withChartFallback) throw err
+    // Retry once more with foreignObjectRendering flipped the other way
+    return await html2canvas(el, {
+      ...H2C_BASE,
+      foreignObjectRendering: true,
+      onclone: (clonedDoc: Document) => {
+        replaceChartsWithPlaceholders(clonedDoc)
+      },
+    })
+  }
+}
+
 export async function downloadElementPng(
   el: HTMLElement,
   filename: string,
 ): Promise<void> {
-  const canvas = await html2canvas(el, {
-    backgroundColor: '#ffffff',
-    scale: 2,
-    useCORS: true,
-    logging: false,
-  })
+  await waitForFontsAndImages(el)
+
+  let canvas: HTMLCanvasElement
+  try {
+    canvas = await captureElement(el, false)
+  } catch (firstErr) {
+    // SVG/Recharts often break html2canvas — retry with chart placeholders
+    try {
+      canvas = await captureElement(el, true)
+    } catch {
+      throw firstErr instanceof Error
+        ? firstErr
+        : new Error('PNG capture failed (charts may not render in this browser)')
+    }
+  }
+
   // Phone-readable page slices (~iPhone-ish portrait at 2x)
   const pageHeight = 1400
   const totalHeight = canvas.height
   const pages = Math.max(1, Math.ceil(totalHeight / pageHeight))
+  const base = filename.replace(/\.png$/i, '')
+
+  const downloadCanvas = async (c: HTMLCanvasElement, name: string) => {
+    const blob: Blob | null = await new Promise((resolve) =>
+      c.toBlob((b) => resolve(b), 'image/png'),
+    )
+    if (blob) {
+      const shared = await tryShareFile(blob, name)
+      if (!shared) triggerDownload(blob, name)
+      return
+    }
+    // Fallback if toBlob unsupported
+    triggerDownload(c.toDataURL('image/png'), name)
+  }
 
   if (pages === 1) {
-    const a = document.createElement('a')
-    a.href = canvas.toDataURL('image/png')
-    a.download = filename.endsWith('.png') ? filename : `${filename}.png`
-    a.click()
+    await downloadCanvas(canvas, `${base}.png`)
     return
   }
 
@@ -63,11 +249,7 @@ export async function downloadElementPng(
       canvas.width,
       h,
     )
-    const a = document.createElement('a')
-    a.href = slice.toDataURL('image/png')
-    const base = filename.replace(/\.png$/i, '')
-    a.download = `${base}-page${i + 1}.png`
-    a.click()
+    await downloadCanvas(slice, `${base}-page${i + 1}.png`)
   }
 }
 
@@ -78,11 +260,20 @@ function scopeLabel(reports: SundayReport[]): string {
   return `${reports.length} Sundays · ${fmtDate(sorted[0].date)} – ${fmtDate(sorted[sorted.length - 1].date)}`
 }
 
-export function buildPdfReport(
+function pdfFilename(
+  settings: AppSettings,
+  contentMode: ReportContentMode,
+): string {
+  const modeTag = contentMode === 'actual' ? 'actual' : 'actual-proposed'
+  return `${settings.churchName.replace(/\s+/g, '-')}-finance-${modeTag}.pdf`
+}
+
+/** Build the PDF document (does not download). */
+export function createPdfReport(
   reports: SundayReport[],
   settings: AppSettings,
   options: ReportExportOptions | string = {},
-): void {
+): { doc: jsPDF; filename: string } {
   const opts: ReportExportOptions =
     typeof options === 'string' ? { title: options } : options
   const contentMode: ReportContentMode = opts.contentMode ?? 'actual_proposed'
@@ -139,10 +330,7 @@ export function buildPdfReport(
 
   if (sorted.length === 0) {
     line('No Sundays in this report scope.', 10)
-    doc.save(
-      `${settings.churchName.replace(/\s+/g, '-')}-finance-draft.pdf`,
-    )
-    return
+    return { doc, filename: pdfFilename(settings, contentMode) }
   }
 
   const { actual, proposed, sundayCount } = aggregateReports(sorted, settings)
@@ -234,7 +422,6 @@ export function buildPdfReport(
         const act = a.byCategory[c] || 0
         line(`${c}: ${fmtAmount(act, settings.currencyLabel)}`, 8)
       }
-      // Income lines for clarity
       if (r.incomes.length) {
         line('Income lines:', 8, 'bold')
         for (const inc of r.incomes) {
@@ -269,8 +456,25 @@ export function buildPdfReport(
   y += 8
   line(DISCLAIMER, 7)
 
-  const modeTag = contentMode === 'actual' ? 'actual' : 'actual-proposed'
-  doc.save(
-    `${settings.churchName.replace(/\s+/g, '-')}-finance-${modeTag}.pdf`,
-  )
+  return { doc, filename: pdfFilename(settings, contentMode) }
+}
+
+/** Build PDF and trigger a download (blob + fallback to doc.save). */
+export async function buildPdfReport(
+  reports: SundayReport[],
+  settings: AppSettings,
+  options: ReportExportOptions | string = {},
+): Promise<Blob> {
+  const { doc, filename } = createPdfReport(reports, settings, options)
+  const blob = doc.output('blob')
+  const shared = await tryShareFile(blob, filename)
+  if (!shared) {
+    try {
+      triggerDownload(blob, filename)
+    } catch {
+      // Last resort for older browsers
+      doc.save(filename)
+    }
+  }
+  return blob
 }

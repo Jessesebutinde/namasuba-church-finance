@@ -45,6 +45,8 @@ export function ReportGenerator() {
   const previewRef = useRef<HTMLDivElement>(null)
   const [busy, setBusy] = useState('')
   const [showPreview, setShowPreview] = useState(true)
+  const [exportError, setExportError] = useState('')
+  const [exportStatus, setExportStatus] = useState('')
 
   const sorted = useMemo(
     () => [...sundays].sort((a, b) => a.date.localeCompare(b.date)),
@@ -177,41 +179,96 @@ export function ReportGenerator() {
   const selectAll = () => setSelectedIds(sorted.map((s) => s.id))
   const clearSelected = () => setSelectedIds([])
 
-  const runPdf = () => {
+  const waitForPreviewPaint = async () => {
+    setShowPreview(true)
+    // Two animation frames + short timeout so layout/charts can paint
+    await new Promise<void>((r) => requestAnimationFrame(() => r()))
+    await new Promise<void>((r) => requestAnimationFrame(() => r()))
+    await new Promise((r) => setTimeout(r, 250))
+  }
+
+  const runPdf = async () => {
+    setExportError('')
+    setExportStatus('')
     setBusy('pdf')
     try {
-      buildPdfReport(selectedReports, settings, {
+      await buildPdfReport(selectedReports, settings, {
         contentMode,
         includeProgression: includeProgression && isMulti,
       })
+      setExportStatus('PDF ready — check your downloads (or share sheet on phone).')
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : 'PDF export failed. Try again.'
+      setExportError(msg)
     } finally {
       setBusy('')
     }
   }
 
   const runPng = async () => {
-    if (!previewRef.current) return
-    setShowPreview(true)
-    // Allow preview to render if it was hidden
-    await new Promise((r) => requestAnimationFrame(() => r(null)))
+    setExportError('')
+    setExportStatus('')
     setBusy('png')
     try {
-      await downloadElementPng(previewRef.current, `${filenameBase}.png`)
+      await waitForPreviewPaint()
+      const el = previewRef.current
+      if (!el) {
+        setExportError('Preview not ready — tap Preview, then try Download PNG again.')
+        return
+      }
+      await downloadElementPng(el, `${filenameBase}.png`)
+      setExportStatus('PNG ready — check your downloads (or share sheet on phone).')
+    } catch (err) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : 'PNG capture failed. Charts can be hard to capture — try PDF instead.'
+      setExportError(msg)
     } finally {
       setBusy('')
     }
   }
 
   const onPreview = () => {
+    setExportError('')
     setShowPreview(true)
     requestAnimationFrame(() => {
       previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
   }
 
-  const onPrint = () => {
-    setShowPreview(true)
-    requestAnimationFrame(() => window.print())
+  const onPrint = async () => {
+    setExportError('')
+    setExportStatus('')
+    setBusy('print')
+    try {
+      await waitForPreviewPaint()
+      if (!previewRef.current) {
+        setExportError('Preview not ready — tap Preview, then try Print again.')
+        return
+      }
+      // Some mobile browsers ignore print() or block it without gesture timing
+      const before = Date.now()
+      window.print()
+      // If print dialog never appears, afterprint may still not fire; hint user
+      setTimeout(() => {
+        // Soft hint only if we returned very quickly (often blocked)
+        if (Date.now() - before < 400) {
+          setExportStatus(
+            'If no print dialog appeared, use Download PDF instead (more reliable on phones).',
+          )
+        }
+      }, 500)
+    } catch (err) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : 'Print was blocked. Use Download PDF instead.'
+      setExportError(msg)
+    } finally {
+      setBusy('')
+    }
   }
 
   return (
@@ -427,20 +484,39 @@ export function ReportGenerator() {
             type="button"
             className="rounded bg-navy-900 px-3 py-2 text-sm text-white disabled:opacity-50"
             disabled={!!busy || !selectedReports.length}
-            onClick={runPdf}
+            onClick={() => void runPdf()}
             data-testid="report-pdf"
           >
             {busy === 'pdf' ? 'Preparing…' : 'Download PDF'}
           </button>
           <button
             type="button"
-            className="rounded border border-navy-900/20 px-3 py-2 text-sm"
-            onClick={onPrint}
+            className="rounded border border-navy-900/20 px-3 py-2 text-sm disabled:opacity-50"
+            disabled={!!busy || !selectedReports.length}
+            onClick={() => void onPrint()}
             data-testid="report-print"
           >
-            Print
+            {busy === 'print' ? 'Opening…' : 'Print'}
           </button>
         </div>
+        {exportError ? (
+          <p
+            className="text-sm text-error"
+            role="alert"
+            data-testid="report-export-error"
+          >
+            {exportError}
+          </p>
+        ) : null}
+        {exportStatus && !exportError ? (
+          <p
+            className="text-sm text-review"
+            role="status"
+            data-testid="report-export-status"
+          >
+            {exportStatus}
+          </p>
+        ) : null}
       </div>
 
       {showPreview ? (

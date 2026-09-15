@@ -84,7 +84,9 @@ export function Layout({
       </header>
 
       <div className="mx-auto max-w-6xl space-y-4 px-4 py-4">
-        <Disclaimer />
+        <div className="no-print">
+          <Disclaimer />
+        </div>
         {children}
       </div>
 
