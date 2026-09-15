@@ -107,12 +107,32 @@ function scopeLabel(reports: SundayReport[]): string {
   return `${reports.length} Sundays · ${fmtDate(sorted[0].date)} - ${fmtDate(sorted[sorted.length - 1].date)}`
 }
 
-function pdfFilename(
+/** Safe slug for filenames: church + period + report type. */
+export function reportFilenameBase(
   settings: AppSettings,
+  reports: SundayReport[],
   contentMode: ReportContentMode,
 ): string {
+  const church = settings.churchName
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'Church'
   const modeTag = contentMode === 'actual' ? 'actual' : 'actual-proposed'
-  return `${settings.churchName.replace(/\s+/g, '-')}-finance-${modeTag}.pdf`
+  const sorted = [...reports].sort((a, b) => a.date.localeCompare(b.date))
+  let period = 'no-sundays'
+  if (sorted.length === 1) {
+    period = sorted[0].date // YYYY-MM-DD
+  } else if (sorted.length > 1) {
+    period = `${sorted[0].date}_to_${sorted[sorted.length - 1].date}`
+  }
+  return `${church}-finance-${modeTag}-${period}`
+}
+
+function pdfFilename(
+  settings: AppSettings,
+  reports: SundayReport[],
+  contentMode: ReportContentMode,
+): string {
+  return `${reportFilenameBase(settings, reports, contentMode)}.pdf`
 }
 
 function buildGroupedSeries(
@@ -265,7 +285,7 @@ export function createPdfReport(
 
   if (sorted.length === 0) {
     line('No Sundays in this report scope.', 10)
-    return { doc, filename: pdfFilename(settings, contentMode) }
+    return { doc, filename: pdfFilename(settings, sorted, contentMode) }
   }
 
   const { actual, proposed, sundayCount } = aggregateReports(sorted, settings)
@@ -528,7 +548,7 @@ export function createPdfReport(
   y += 8
   line(DISCLAIMER, 7)
 
-  return { doc, filename: pdfFilename(settings, contentMode) }
+  return { doc, filename: pdfFilename(settings, sorted, contentMode) }
 }
 
 /** Build PDF and trigger a download (blob + fallback to doc.save). */
@@ -595,9 +615,7 @@ export async function downloadReportPng(
     options.includeProgression ?? reports.length > 1
   const includeCharts = options.includeCharts ?? true
   const sorted = [...reports].sort((a, b) => a.date.localeCompare(b.date))
-  const filename = `${settings.churchName.replace(/\s+/g, '-')}-finance-${
-    contentMode === 'actual' ? 'actual' : 'actual-proposed'
-  }.png`
+  const filename = `${reportFilenameBase(settings, sorted, contentMode)}.png`
 
   const width = 720
   const chartH = 260
