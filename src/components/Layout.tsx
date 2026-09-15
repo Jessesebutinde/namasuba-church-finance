@@ -10,13 +10,13 @@ export type TabId =
   | 'settings'
   | 'audit'
 
-const TABS: { id: TabId; label: string }[] = [
-  { id: 'dashboard', label: 'Dashboard' },
-  { id: 'entry', label: 'Sunday entry' },
-  { id: 'comparison', label: 'Comparison' },
-  { id: 'reports', label: 'Reports' },
-  { id: 'settings', label: 'Settings' },
-  { id: 'audit', label: 'Audit log' },
+const TABS: { id: TabId; label: string; short: string }[] = [
+  { id: 'dashboard', label: 'Dashboard', short: 'Home' },
+  { id: 'entry', label: 'Sunday entry', short: 'Entry' },
+  { id: 'comparison', label: 'Comparison', short: 'Compare' },
+  { id: 'reports', label: 'Reports', short: 'Reports' },
+  { id: 'settings', label: 'Settings', short: 'Settings' },
+  { id: 'audit', label: 'Audit log', short: 'Audit' },
 ]
 
 export function Layout({
@@ -65,19 +65,23 @@ export function Layout({
             </button>
           </div>
         </div>
-        <nav className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-4 pb-3">
+        <nav
+          className="mx-auto flex max-w-6xl flex-wrap gap-1 px-4 pb-3 sm:flex-nowrap sm:overflow-x-auto"
+          aria-label="Main"
+        >
           {TABS.map((t) => (
             <button
               key={t.id}
               type="button"
               onClick={() => onTab(t.id)}
-              className={`whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium ${
+              className={`min-h-10 flex-1 rounded-md px-2 py-2 text-xs font-medium sm:flex-none sm:whitespace-nowrap sm:px-3 sm:text-sm ${
                 tab === t.id
                   ? 'bg-navy-900 text-white'
                   : 'text-navy-800 hover:bg-navy-900/5'
               }`}
             >
-              {t.label}
+              <span className="sm:hidden">{t.short}</span>
+              <span className="hidden sm:inline">{t.label}</span>
             </button>
           ))}
         </nav>
