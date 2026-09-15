@@ -37,6 +37,8 @@ export interface SundayReport {
   createdAt: string
   updatedAt: string
   status: ReportStatus
+  /** Outstanding church bills / debt this Sunday, in thousands of UGX. 0 → proposed debt stays 0. */
+  outstandingDebt: number
   overrideHighAmount?: boolean
 }
 

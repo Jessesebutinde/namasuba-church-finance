@@ -55,8 +55,13 @@ export function SettingsPanel() {
               checked={settings.noDebtMode}
               onChange={(e) => updateSettings({ noDebtMode: e.target.checked })}
             />
-            No-debt mode (trial structure — debt slice redistributed per band rules)
+            No debt currently recorded
           </label>
+          <p className="text-xs text-muted sm:col-span-2 -mt-2">
+            When on (default), proposed Debt stays 0 and the debt slice is redistributed
+            per band rules. Turn off and set a Sunday outstanding-debt amount to allow a
+            capped debt line.
+          </p>
           <label className="flex items-center gap-2 text-sm sm:col-span-2">
             <input
               type="checkbox"

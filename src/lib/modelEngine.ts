@@ -158,11 +158,16 @@ export function computeProposed(
     remaining = Math.max(0, remaining - dormantPool)
   }
 
-  let debt = remaining * band.restDebt
+  const debtSlice = remaining * band.restDebt
+  let debt = debtSlice
   let usher = remaining * band.restUsher
   let sav = remaining * band.restSav
 
-  if (settings.noDebtMode && debt > 0) {
+  const outstanding = Number(report.outstandingDebt) || 0
+  // Effective no-debt when settings say so, or when this Sunday has no outstanding debt.
+  const effectiveNoDebt = settings.noDebtMode || outstanding <= 0
+
+  if (effectiveNoDebt && debt > 0) {
     if (band.noDebtMode === 'pastor_inst') {
       pastor += debt * band.noDebtPastorShare
       inst += debt * band.noDebtInstShare
@@ -171,6 +176,19 @@ export function computeProposed(
       usher += debt * 0.5
       sav += debt * 0.5
       debt = 0
+    } else {
+      // Band has no redistribution rule — still force debt line to 0; leftover 50/50.
+      usher += debt * 0.5
+      sav += debt * 0.5
+      debt = 0
+    }
+  } else if (outstanding > 0) {
+    // Cap debt at outstanding; leftover of the debt slice goes 50/50 ushering & savings.
+    debt = Math.min(debtSlice, outstanding)
+    const leftover = debtSlice - debt
+    if (leftover > 0) {
+      usher += leftover * 0.5
+      sav += leftover * 0.5
     }
   }
 

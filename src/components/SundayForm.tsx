@@ -56,6 +56,7 @@ export function SundayForm() {
         enteredBy: '',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        outstandingDebt: 0,
         status: 'Draft',
       }
     }
@@ -185,6 +186,32 @@ export function SundayForm() {
                   }
                 />
                 Admin override for Above 300k (still for discussion)
+              </label>
+              <label className="text-sm sm:col-span-2">
+                <span className="mb-1 block text-muted">
+                  Outstanding church bills / debt this Sunday (thousands of UGX)
+                </span>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  disabled={!isAdmin}
+                  title="Thousands of UGX — 0 means proposed debt stays 0"
+                  placeholder="0"
+                  value={draft.outstandingDebt ?? 0}
+                  onChange={(e) =>
+                    setDraft({
+                      ...draft,
+                      outstandingDebt: Math.max(0, Number(e.target.value) || 0),
+                    })
+                  }
+                  className="w-full rounded border border-navy-900/20 px-2 py-1"
+                />
+                <p className="mt-1 text-xs text-muted">
+                  Enter 0 when there is no outstanding debt — proposed Debt stays 0 and
+                  the debt slice is redistributed per band no-debt rules. When set above
+                  0, proposed debt is capped at this amount.
+                </p>
               </label>
             </div>
             <label className="mt-3 block text-sm">

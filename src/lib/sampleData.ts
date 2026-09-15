@@ -44,6 +44,7 @@ export function createSampleSundays(): SundayReport[] {
     enteredBy: 'Sample preload',
     createdAt: ts('2025-09-06T12:00:00.000Z'),
     updatedAt: ts('2025-09-06T12:00:00.000Z'),
+    outstandingDebt: 0,
     status: 'Ready',
   }
 
@@ -85,6 +86,7 @@ export function createSampleSundays(): SundayReport[] {
     enteredBy: 'Sample preload',
     createdAt: ts('2025-09-13T12:00:00.000Z'),
     updatedAt: ts('2025-09-13T12:00:00.000Z'),
+    outstandingDebt: 0,
     status: 'Ready',
   }
 

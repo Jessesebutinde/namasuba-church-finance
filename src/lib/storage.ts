@@ -3,20 +3,38 @@ import { DEFAULT_SETTINGS, STORAGE_KEY, migrateBandLabels } from './defaults'
 import { createSampleSundays } from './sampleData'
 import { v4 as uuid } from 'uuid'
 
+function migrateCurrencyLabel(settings: AppState['settings']): void {
+  // Migrate legacy "k" unit label → UGX (values stay in thousands)
+  if (!settings.currencyLabel || settings.currencyLabel.toLowerCase() === 'k') {
+    settings.currencyLabel = 'UGX'
+  }
+}
+
+function migrateSundays(sundays: unknown): AppState['sundays'] {
+  if (!Array.isArray(sundays)) return []
+  return sundays.map((raw) => {
+    const s = raw as AppState['sundays'][number]
+    return {
+      ...s,
+      outstandingDebt:
+        typeof s.outstandingDebt === 'number' && Number.isFinite(s.outstandingDebt)
+          ? s.outstandingDebt
+          : 0,
+    }
+  })
+}
+
 export function loadState(): AppState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return initialState()
     const parsed = JSON.parse(raw) as AppState
     const settings = { ...DEFAULT_SETTINGS, ...parsed.settings }
-    // Migrate legacy "k" unit label → UGX (values stay in thousands)
-    if (!settings.currencyLabel || settings.currencyLabel.toLowerCase() === 'k') {
-      settings.currencyLabel = 'UGX'
-    }
+    migrateCurrencyLabel(settings)
     settings.modelBands = migrateBandLabels(settings.modelBands)
     return {
       settings,
-      sundays: Array.isArray(parsed.sundays) ? parsed.sundays : [],
+      sundays: migrateSundays(parsed.sundays),
       auditLog: Array.isArray(parsed.auditLog) ? parsed.auditLog : [],
     }
   } catch {
@@ -68,10 +86,11 @@ export function importJson(text: string): AppState {
     throw new Error('Invalid backup file')
   }
   const settings = { ...DEFAULT_SETTINGS, ...parsed.settings }
+  migrateCurrencyLabel(settings)
   settings.modelBands = migrateBandLabels(settings.modelBands)
   return {
     settings,
-    sundays: parsed.sundays,
+    sundays: migrateSundays(parsed.sundays),
     auditLog: Array.isArray(parsed.auditLog) ? parsed.auditLog : [],
   }
 }
