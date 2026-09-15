@@ -23,7 +23,7 @@ import { DISCLAIMER } from '../lib/defaults'
 import { fmtAmount, fmtDate } from '../lib/format'
 import {
   buildPdfReport,
-  downloadElementPng,
+  downloadReportPng,
   type ReportContentMode,
 } from '../lib/exportReport'
 import type { SundayReport } from '../lib/types'
@@ -62,6 +62,7 @@ export function ReportGenerator() {
     useState<ReportContentMode>('actual_proposed')
   const [includeProgression, setIncludeProgression] = useState(false)
   const [progressionTouched, setProgressionTouched] = useState(false)
+  const [includeCharts, setIncludeCharts] = useState(true)
 
   // Seed defaults when Sundays load / change
   useEffect(() => {
@@ -166,10 +167,6 @@ export function ReportGenerator() {
     return `${selectedReports.length} Sundays · ${fmtDate(first.date)} – ${fmtDate(last.date)}`
   }, [selectedReports])
 
-  const filenameBase = `${settings.churchName.replace(/\s+/g, '-')}-finance-${
-    contentMode === 'actual' ? 'actual' : 'actual-proposed'
-  }`
-
   const toggleSelected = (id: string) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
@@ -195,6 +192,7 @@ export function ReportGenerator() {
       await buildPdfReport(selectedReports, settings, {
         contentMode,
         includeProgression: includeProgression && isMulti,
+        includeCharts,
       })
       setExportStatus('PDF ready — check your downloads (or share sheet on phone).')
     } catch (err) {
@@ -212,18 +210,17 @@ export function ReportGenerator() {
     setBusy('png')
     try {
       await waitForPreviewPaint()
-      const el = previewRef.current
-      if (!el) {
-        setExportError('Preview not ready — tap Preview, then try Download PNG again.')
-        return
-      }
-      await downloadElementPng(el, `${filenameBase}.png`)
+      await downloadReportPng(selectedReports, settings, {
+        contentMode,
+        includeProgression: includeProgression && isMulti,
+        includeCharts,
+      })
       setExportStatus('PNG ready — check your downloads (or share sheet on phone).')
     } catch (err) {
       const msg =
         err instanceof Error
           ? err.message
-          : 'PNG capture failed. Charts can be hard to capture — try PDF instead.'
+          : 'PNG export failed. Try PDF instead.'
       setExportError(msg)
     } finally {
       setBusy('')
@@ -456,6 +453,19 @@ export function ReportGenerator() {
           </span>
         </label>
 
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={includeCharts}
+            onChange={(e) => setIncludeCharts(e.target.checked)}
+            data-testid="report-include-charts"
+          />
+          <span>
+            Include charts
+            <span className="text-muted"> (PDF &amp; PNG; default on)</span>
+          </span>
+        </label>
+
         <p className="text-sm text-muted" data-testid="report-scope-summary">
           Active scope: <strong className="text-navy-900">{scopeSummary}</strong>
           {' · '}
@@ -582,7 +592,7 @@ export function ReportGenerator() {
               </section>
 
               {/* Single-Sunday income/expense breakdown */}
-              {!isMulti && incomeExpenseChartData.length > 0 ? (
+              {includeCharts && !isMulti && incomeExpenseChartData.length > 0 ? (
                 <section className="mt-6 break-inside-avoid">
                   <h3 className="text-base font-semibold text-navy-900">
                     Income & expense overview
@@ -602,6 +612,7 @@ export function ReportGenerator() {
               ) : null}
 
               {/* Category breakdown chart */}
+              {includeCharts ? (
               <section className="mt-6 break-inside-avoid">
                 <h3 className="text-base font-semibold text-navy-900">
                   {contentMode === 'actual'
@@ -624,9 +635,10 @@ export function ReportGenerator() {
                   </ResponsiveContainer>
                 </div>
               </section>
+              ) : null}
 
               {/* Progression chart for multi */}
-              {includeProgression && isMulti ? (
+              {includeCharts && includeProgression && isMulti ? (
                 <section className="mt-6 break-inside-avoid">
                   <h3 className="text-base font-semibold text-navy-900">
                     Progression across Sundays

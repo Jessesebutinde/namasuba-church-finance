@@ -24,10 +24,11 @@ export const DEFAULT_CATEGORIES: CategoryConfig[] = [
   },
 ]
 
+/** ASCII-only labels so Helvetica/jsPDF does not garble ≤ ≥ etc. */
 export const DEFAULT_BANDS: ModelBand[] = [
   {
     id: 'le40',
-    label: 'G ≤ 40',
+    label: '40k or less',
     minG: 0,
     maxG: 40.0000001,
     pastorFixed: null,
@@ -45,7 +46,7 @@ export const DEFAULT_BANDS: ModelBand[] = [
   },
   {
     id: 'gt40_lt70',
-    label: '40 < G < 70',
+    label: 'Above 40k under 70k',
     minG: 40.0000001,
     maxG: 70,
     pastorFixed: 20,
@@ -63,7 +64,7 @@ export const DEFAULT_BANDS: ModelBand[] = [
   },
   {
     id: 'ge70_lt100',
-    label: '70 ≤ G < 100',
+    label: '70k to under 100k',
     minG: 70,
     maxG: 100,
     pastorFixed: 30,
@@ -81,7 +82,7 @@ export const DEFAULT_BANDS: ModelBand[] = [
   },
   {
     id: 'ge100_lt200',
-    label: '100 ≤ G < 200',
+    label: '100k to under 200k',
     minG: 100,
     maxG: 200,
     pastorFixed: 50,
@@ -99,7 +100,7 @@ export const DEFAULT_BANDS: ModelBand[] = [
   },
   {
     id: 'ge200_lt300',
-    label: '200 ≤ G < 300',
+    label: '200k to under 300k',
     minG: 200,
     maxG: 300,
     pastorFixed: 70,
@@ -117,7 +118,7 @@ export const DEFAULT_BANDS: ModelBand[] = [
   },
   {
     id: 'ge300',
-    label: 'G ≥ 300',
+    label: 'Above 300k',
     minG: 300,
     maxG: null,
     pastorFixed: null,
@@ -152,3 +153,29 @@ export const DEFAULT_SETTINGS: AppSettings = {
 }
 
 export const STORAGE_KEY = 'namasuba-church-finance-v1'
+
+/** Refresh known band labels to ASCII defaults (keeps custom mins/rules). */
+export function migrateBandLabels(bands: ModelBand[] | undefined): ModelBand[] {
+  const defaultsById = new Map(DEFAULT_BANDS.map((b) => [b.id, b]))
+  if (!Array.isArray(bands) || bands.length === 0) {
+    return DEFAULT_BANDS.map((b) => ({ ...b }))
+  }
+  return bands.map((b) => {
+    const def = defaultsById.get(b.id)
+    if (!def) {
+      // Sanitize any fancy unicode in custom labels
+      return {
+        ...b,
+        label: String(b.label ?? '')
+          .replace(/≤/g, '<=')
+          .replace(/≥/g, '>=')
+          .replace(/–|—|−/g, '-')
+          .replace(/[^\x20-\x7E]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim() || b.id,
+      }
+    }
+    // Prefer ASCII default label for known band ids
+    return { ...b, label: def.label }
+  })
+}

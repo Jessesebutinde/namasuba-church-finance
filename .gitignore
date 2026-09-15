@@ -2,3 +2,4 @@ node_modules/
 .chrome-tmp/
 dist/
 *.local
+scripts/out/

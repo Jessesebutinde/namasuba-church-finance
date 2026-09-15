@@ -129,3 +129,20 @@ describe('proposed model engine — sample Sundays', () => {
     expect(computeActual(sep13).balance).toBe(0)
   })
 })
+
+describe('band labels are ASCII-safe for PDF', () => {
+  it('13 Sep uses 70k to under 100k', () => {
+    const sundays = createSampleSundays()
+    const sep13 = sundays.find((s) => s.date === '2025-09-13')!
+    const p = computeProposed(sep13, baseSettings)
+    expect(p.bandLabel).toBe('70k to under 100k')
+    expect(p.bandLabel).toMatch(/^[\x20-\x7E]+$/)
+  })
+
+  it('default band labels have no fancy dashes or inequalities', () => {
+    for (const band of DEFAULT_SETTINGS.modelBands) {
+      expect(band.label).toMatch(/^[\x20-\x7E]+$/)
+      expect(band.label).not.toMatch(/[≤≥–—]/)
+    }
+  })
+})

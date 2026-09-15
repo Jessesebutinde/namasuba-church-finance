@@ -1,5 +1,5 @@
 import type { AppState, AuditEntry } from './types'
-import { DEFAULT_SETTINGS, STORAGE_KEY } from './defaults'
+import { DEFAULT_SETTINGS, STORAGE_KEY, migrateBandLabels } from './defaults'
 import { createSampleSundays } from './sampleData'
 import { v4 as uuid } from 'uuid'
 
@@ -13,6 +13,7 @@ export function loadState(): AppState {
     if (!settings.currencyLabel || settings.currencyLabel.toLowerCase() === 'k') {
       settings.currencyLabel = 'UGX'
     }
+    settings.modelBands = migrateBandLabels(settings.modelBands)
     return {
       settings,
       sundays: Array.isArray(parsed.sundays) ? parsed.sundays : [],
@@ -66,8 +67,10 @@ export function importJson(text: string): AppState {
   if (!parsed || !parsed.settings || !Array.isArray(parsed.sundays)) {
     throw new Error('Invalid backup file')
   }
+  const settings = { ...DEFAULT_SETTINGS, ...parsed.settings }
+  settings.modelBands = migrateBandLabels(settings.modelBands)
   return {
-    settings: { ...DEFAULT_SETTINGS, ...parsed.settings },
+    settings,
     sundays: parsed.sundays,
     auditLog: Array.isArray(parsed.auditLog) ? parsed.auditLog : [],
   }

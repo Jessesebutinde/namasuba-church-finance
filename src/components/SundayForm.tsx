@@ -184,7 +184,7 @@ export function SundayForm() {
                     setDraft({ ...draft, overrideHighAmount: e.target.checked })
                   }
                 />
-                Admin override for G ≥ 300 (still for discussion)
+                Admin override for Above 300k (still for discussion)
               </label>
             </div>
             <label className="mt-3 block text-sm">

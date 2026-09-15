@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "oxlint"
+    "lint": "oxlint",
+    "verify:export": "node scripts/verify-export.mjs"
   },
   "dependencies": {
     "date-fns": "^4.4.0",
@@ -29,6 +30,7 @@
     "@types/react-dom": "^19.2.7",
     "@types/uuid": "^11.0.0",
     "@vitejs/plugin-react": "^6.1.1",
+    "canvas": "^2.11.2",
     "jsdom": "^25.0.1",
     "oxlint": "^1.81.0",
     "tailwindcss": "^4.3.3",
